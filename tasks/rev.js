@@ -12,6 +12,8 @@ var fs = require('fs'),
   path = require('path'),
   crypto = require('crypto');
 
+var BUFFER_SIZE = 1024 * 64;
+
 module.exports = function(grunt) {
 
   function md5(filepath, algorithm, encoding, fileEncoding) {
@@ -26,7 +28,8 @@ module.exports = function(grunt) {
     var options = this.options({
       encoding: 'utf8',
       algorithm: 'md5',
-      length: 8
+      length: 8,
+      preserve: false
     });
 
     this.files.forEach(function(filePair) {
@@ -35,12 +38,29 @@ module.exports = function(grunt) {
         var hash = md5(f, options.algorithm, 'hex', options.encoding),
           prefix = hash.slice(0, options.length),
           renamed = [prefix, path.basename(f)].join('.'),
-          outPath = path.resolve(path.dirname(f), renamed);
+          outPath = path.resolve(path.dirname(f), renamed),
+          buffer = new Buffer(BUFFER_SIZE),
+          reader = fs.openSync(f, 'r'),
+          writer = fs.openSync(outPath, 'w'),
+          bytesRead = 0,
+          pos = 0;
 
         grunt.verbose.ok().ok(hash);
-        fs.renameSync(f, outPath);
-        grunt.log.write(f + ' ').ok(renamed);
 
+        do {
+          bytesRead = fs.readSync(reader, buffer, 0, BUFFER_SIZE, pos);
+          fs.writeSync(writer, buffer, 0, bytesRead);
+          pos += bytesRead;
+        } while ( bytesRead > 0 )
+
+        fs.closeSync(reader);
+        fs.closeSync(writer);
+
+        if ( !options.preserve ) {
+          fs.unlinkSync(f);
+        }
+
+        grunt.log.write(f + ' ').ok(renamed);
       });
     });
 
