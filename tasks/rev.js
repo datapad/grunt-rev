@@ -34,18 +34,23 @@ module.exports = function(grunt) {
 
     this.files.forEach(function(filePair) {
       filePair.src.forEach(function(f) {
+        var inFile = path.join(filePair.cwd || '', f);
 
-        var hash = md5(f, options.algorithm, 'hex', options.encoding),
+        var hash = md5(inFile, options.algorithm, 'hex', options.encoding),
           prefix = hash.slice(0, options.length),
-          renamed = [prefix, path.basename(f)].join('.'),
-          outPath = path.resolve(path.dirname(f), renamed),
-          buffer = new Buffer(BUFFER_SIZE),
-          reader = fs.openSync(f, 'r'),
+          renamed = [prefix, path.basename(inFile)].join('.'),
+          outDir = filePair.dest ? path.join(filePair.dest, filePair.flatten ? '' : path.dirname(f)) : path.dirname(inFile),
+          outPath = path.resolve(outDir, renamed);
+
+        grunt.verbose.ok().ok(hash);
+
+        grunt.file.mkdir(outDir);
+
+        var buffer = new Buffer(BUFFER_SIZE),
+          reader = fs.openSync(inFile, 'r'),
           writer = fs.openSync(outPath, 'w'),
           bytesRead = 0,
           pos = 0;
-
-        grunt.verbose.ok().ok(hash);
 
         do {
           bytesRead = fs.readSync(reader, buffer, 0, BUFFER_SIZE, pos);
@@ -60,7 +65,7 @@ module.exports = function(grunt) {
           fs.unlinkSync(f);
         }
 
-        grunt.log.write(f + ' ').ok(renamed);
+        grunt.log.write(inFile + ' ').ok(renamed);
       });
     });
 
